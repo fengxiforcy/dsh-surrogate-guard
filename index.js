@@ -138,15 +138,34 @@ function scrubValue(value, replacement, stats) {
  * @param stats 计数
  * @returns 无命中时返回原决策
  */
-function neutralizeDecision(decision, result, replacement, stats) {
-	if (Object.hasOwn(decision, 'value')) {
-		if (result.isError) return decision;
-		const value = scrubValue(decision.value, replacement, stats);
-		return value === decision.value ? decision : { ...decision, value };
+export function neutralizeDecision(decision, result, replacement, stats) {
+	if (!decision || decision.kind !== 'accept') return decision;
+	if (result && result.isError) return decision;
+
+	let out = decision;
+
+	// 1) 决策自身的每个字段：value / content / meta / 工具自定义字段，一律深扫。
+	//    2026-10-30 修正：旧版只扫 value 与 content，read 的 data.meta.lines[].text
+	//    整段落在扫描范围外，导致 read 截断产生的孤立代理原样写进会话（Kluth 实测）。
+	for (const key of Object.keys(out)) {
+		if (key === 'kind') continue;
+		const current = out[key];
+		const scrubbed = scrubValue(current, replacement, stats);
+		if (scrubbed !== current) out = { ...out, [key]: scrubbed };
 	}
-	const content = decision.content ?? result.content;
-	const scrubbed = scrubValue(content, replacement, stats);
-	return scrubbed === content ? decision : { ...decision, content: scrubbed };
+
+	// 2) 决策没带、但结果上有的载荷字段（read / grep / bash 各自的结构都覆盖）
+	if (result && typeof result === 'object') {
+		for (const key of ['value', 'content', 'meta', 'data', 'output', 'result', 'lines']) {
+			if (Object.hasOwn(out, key)) continue;
+			if (!Object.hasOwn(result, key)) continue;
+			const current = result[key];
+			const scrubbed = scrubValue(current, replacement, stats);
+			if (scrubbed !== current) out = { ...out, [key]: scrubbed };
+		}
+	}
+
+	return out;
 }
 
 /**

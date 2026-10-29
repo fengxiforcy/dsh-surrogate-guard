@@ -62,3 +62,21 @@ node test/guard.test.mjs
 ## 许可
 
 MIT
+
+## 更新日志
+
+### 0.1.1 (2026-10-30)
+
+**修复 read 路径漏扫（Kluth 实测发现）**：tools/post-execute 的决策里，read 工具把行文本放在 data.meta.lines[].text，旧版只扫 value / content，导致 read 截断产生的孤立代理原样写进会话。现在改为：
+
+- 决策自身所有字段深扫（value / content / meta / 任意工具自定义字段）；
+- 决策没带、但结果上有的载荷字段（value / content / meta / data / output / result / lines）也一并深扫。
+
+新增 4 项离线检查（read 结构、仅 result 携带、错误结果不改、拒绝决策不改），共 13 项。
+
+> 顺带说明：DSH 侧 @deepseek-ai/dsh-tool-fs 的 truncateLine 仍是裸 substring 截断（line.substring(0, 2000)），这是产生孤立代理的源头。本插件只能事后中和，根治要在核心侧做码点对齐。
+
+### 0.1.3 (2026-10-30)
+
+- 把 `test/` 打进 npm 包：此前 `files` 漏了它，装包的人无法复现 13 项检查。现在 `node test/guard.test.mjs` 装完即可跑。
+- 同步 GitHub 与 npm：0.1.1 只发到了 npm，GitHub 停在 0.1.0，导致 `dsh plugin add github:...` 会装到有 bug 的旧版。本版起两边一致（0.1.2 与 0.1.3 内容相同，0.1.3 是绕开 npm 一次状态卡顿的重发）。
