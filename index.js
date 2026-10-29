@@ -142,30 +142,31 @@ export function neutralizeDecision(decision, result, replacement, stats) {
 	if (!decision || decision.kind !== 'accept') return decision;
 	if (result && result.isError) return decision;
 
-	let out = decision;
+	// 合约：accept 决策**不能同时**替换 value 与 content（DSH tools/post-execute）。
+	// 2026-10-30 回归修正（Kluth 实测）：0.1.1 遍历所有字段，read 的 value 与 content
+	// 同源同义、两处同时命中，被框架拒掉整条结果（"cannot replace both value and content"）。
+	// 所以这里按优先级找**第一处**命中，命中即返回，绝不两处都改。
+	const order = ['value', 'content', 'meta', 'data', 'output', 'result', 'lines'];
 
-	// 1) 决策自身的每个字段：value / content / meta / 工具自定义字段，一律深扫。
-	//    2026-10-30 修正：旧版只扫 value 与 content，read 的 data.meta.lines[].text
-	//    整段落在扫描范围外，导致 read 截断产生的孤立代理原样写进会话（Kluth 实测）。
-	for (const key of Object.keys(out)) {
-		if (key === 'kind') continue;
-		const current = out[key];
+	for (const key of order) {
+		if (!Object.hasOwn(decision, key)) continue;
+		const current = decision[key];
 		const scrubbed = scrubValue(current, replacement, stats);
-		if (scrubbed !== current) out = { ...out, [key]: scrubbed };
+		if (scrubbed !== current) return { ...decision, [key]: scrubbed };
 	}
 
-	// 2) 决策没带、但结果上有的载荷字段（read / grep / bash 各自的结构都覆盖）
+	// 决策没带、结果上有的载荷字段（read 的 data.meta.lines[].text 走这里）
 	if (result && typeof result === 'object') {
-		for (const key of ['value', 'content', 'meta', 'data', 'output', 'result', 'lines']) {
-			if (Object.hasOwn(out, key)) continue;
+		for (const key of order) {
+			if (Object.hasOwn(decision, key)) continue;
 			if (!Object.hasOwn(result, key)) continue;
 			const current = result[key];
 			const scrubbed = scrubValue(current, replacement, stats);
-			if (scrubbed !== current) out = { ...out, [key]: scrubbed };
+			if (scrubbed !== current) return { ...decision, [key]: scrubbed };
 		}
 	}
 
-	return out;
+	return decision;
 }
 
 /**

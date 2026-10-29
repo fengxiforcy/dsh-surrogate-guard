@@ -80,3 +80,17 @@ MIT
 
 - 把 `test/` 打进 npm 包：此前 `files` 漏了它，装包的人无法复现 13 项检查。现在 `node test/guard.test.mjs` 装完即可跑。
 - 同步 GitHub 与 npm：0.1.1 只发到了 npm，GitHub 停在 0.1.0，导致 `dsh plugin add github:...` 会装到有 bug 的旧版。本版起两边一致（0.1.2 与 0.1.3 内容相同，0.1.3 是绕开 npm 一次状态卡顿的重发）。
+
+### 0.1.4 (2026-10-30)
+
+**修复 0.1.1 引入的回归（Kluth 实测）**：tools/post-execute 的合约规定 accept 决策**不能同时替换 value 与 content**。0.1.1 遍历全部字段做深扫，read 的 value 与 content 同源同义、两处同时命中，导致框架拒掉整条结果：
+
+```text
+Error: tools/post-execute accept decision cannot replace both value and content
+```
+
+现象是「毒没进会话，但 read 内容完全拿不到」——比原来的 bug 更糟。
+
+现在改为：按 value → content → meta → data → output → result → lines 的顺序找**第一处命中**，命中即返回，**绝不两处都改**。深扫的覆盖面保留，落地只替换一处。
+
+新增 4 项测试（同时命中只改 value、只 content、只 value、只有 meta），合计 17 项。

@@ -75,4 +75,28 @@ assert.equal(outErr, errDecision, 'isError 时不得改写');
 const reject = { kind: 'reject' };
 assert.equal(neutralizeDecision(reject, {}, '\uFFFD', { count: 0 }), reject);
 
-console.log('surrogate-guard: 13 项离线检查全部通过');
+// 14. 合约：accept 决策不能同时替换 value 与 content（0.1.1 回归，Kluth 实测）
+const both = { kind: 'accept', value: { text: 'x' + HI }, content: 'y' + HI };
+const outBoth = neutralizeDecision(both, { isError: false }, '\uFFFD', { count: 0 });
+assert.equal(outBoth.content, both.content, 'content 必须原样保留：不能同时替换两处');
+assert.equal(hasLoneSurrogate(outBoth.value.text), false, 'value 里的孤立代理要清掉');
+
+// 15. 只有 content 命中时改 content
+const onlyContent = { kind: 'accept', content: 'y' + HI };
+assert.equal(hasLoneSurrogate(neutralizeDecision(onlyContent, { isError: false }, '\uFFFD', { count: 0 }).content), false);
+
+// 16. 只有 value 命中时改 value，且不动 content
+const onlyValue = { kind: 'accept', value: 'z' + HI, content: 'clean' };
+const ov = neutralizeDecision(onlyValue, { isError: false }, '\uFFFD', { count: 0 });
+assert.equal(ov.content, 'clean');
+assert.equal(hasLoneSurrogate(ov.value), false);
+
+// 17. value / content 都干净、坏字符只在 result.meta 时，走 meta 分支
+const metaOnly = neutralizeDecision({ kind: 'accept', value: 'ok', content: 'ok' },
+  { isError: false, meta: { lines: [{ number: 1, text: HI }] } }, '\uFFFD', { count: 0 });
+assert.ok(metaOnly.meta, '应回带 meta');
+assert.equal(hasLoneSurrogate(metaOnly.meta.lines[0].text), false);
+assert.equal(metaOnly.value, 'ok');
+assert.equal(metaOnly.content, 'ok');
+
+console.log('surrogate-guard: 17 项离线检查全部通过');

@@ -1,6 +1,6 @@
 {
   "name": "dsh-surrogate-guard",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "private": false,
   "description": "DeepSeek Harness plugin: neutralize lone UTF-16 surrogates in tool results and entering messages before the session log records them (prevents permanent 400 INVALID_REQUEST).",
   "type": "module",
