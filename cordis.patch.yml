@@ -1,0 +1,12 @@
+# dsh-surrogate-guard bundle patch.
+#
+# 中和「落单的半个字符」（UTF-16 孤立代理）：它们由工具结果截断产生，
+# 写进会话后会让该会话此后每一轮都 400 INVALID_REQUEST。
+# 只改内容进入会话日志的入口，不动报文出口（Harness 要求日志可重建）。
+- insert:
+    - id: surrogate-guard
+      name: dsh-surrogate-guard
+      config:
+        toolResults: true
+        userMessages: true
+        log: true
