@@ -1,17 +1,19 @@
 {
   "name": "dsh-surrogate-guard",
-  "version": "0.1.4",
+  "version": "0.1.10",
   "private": false,
-  "description": "DeepSeek Harness plugin: neutralize lone UTF-16 surrogates in tool results and entering messages before the session log records them (prevents permanent 400 INVALID_REQUEST).",
+  "description": "DeepSeek Harness plugin: neutralize lone UTF-16 surrogates before the session log records them, and auto-scan/repair session files that already contain one (prevents permanent 400 INVALID_REQUEST).",
   "type": "module",
   "license": "MIT",
   "exports": {
     ".": "./index.js",
+    "./client": "./lib/client.js",
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./package.json": "./package.json"
   },
   "files": [
     "index.js",
+    "lib",
     "cordis.patch.yml",
     "README.md",
     "LICENSE",
@@ -31,12 +33,16 @@
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": []
     }
   },
   "engines": {
     "node": "^22.19 || >=24"
   },
   "scripts": {
-    "test": "node test/guard.test.mjs"
+    "test": "node test/guard.test.mjs && node test/vaccine.test.mjs"
   }
 }
